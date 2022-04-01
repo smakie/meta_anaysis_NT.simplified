@@ -223,38 +223,6 @@ assumption <- function(model){
 
 
 
-```{r functions}
-#Testing my function
-#----------------------------------------------------------------------------------------------------
-#rma.mv.outlier.new(meta_tib, struct = "CS", method = "REML", random = ~ 1 | study_id/effect, cluster = meta_tib$effect, b = 0)
-#c <- meta_tib$effect
-#rename(as.tibble(as.factor(c)), effect = value)
-  #cod1 <- cooks.distance(ml_meta_model.3l, progbar=FALSE, reestimate=TRUE, parallel="no", ncpus=1, cluster = as.factor(c))
-  #cod2 <- rename(mutate(rownames_to_column(as.data.frame(cod1), var = "effect"), effect = as.factor(effect)), cooks.d = cod1)
-
-#cooks.distance(ml_meta_model.3l_mod_NT_type.1, progbar=FALSE, reestimate=TRUE, parallel="no", ncpus=1, cluster = as.factor(c)) %>% as.data.frame()
-#dfbetas(ml_meta_model.3l_mod_NT_type.1, progbar=FALSE, reestimate=TRUE, parallel="no", ncpus=1, cluster = as.factor(c))
-
-#c <- meta_tib$effect
-#rename(as.tibble(as.factor(c)), effect = value)
-  #dfbetas1 <- dfbetas(ml_meta_model.3l_mod_NT_type.1, progbar=FALSE, reestimate=TRUE, parallel="no", ncpus=1, cluster = as.factor(c))
-  #dfbetas2 <- mutate(rownames_to_column(as.data.frame(t(head((as.data.frame(t(dfbetas1))),(b + 1)))), var = "effect"), effect = as.factor(effect))
-  #names(dfbetas2)[2]<-paste("DFBETAS") 
-#dfbetas(ml_meta_model.3l_mod_NT_type.1, progbar=FALSE, reestimate=TRUE, parallel="no", ncpus=1, cluster = as.factor(c)) %>%  as.data.frame() %>% rownames() %>% transpose() %>% as.tibble()
-
-#b <- 2
-#as.data.frame(t(tibble(head(rownames_to_column(as.data.frame(t(dfbetas1)), var = "b"), (b + 1)))))
-#filter(rownames_to_column(as.data.frame(t(head(rownames_to_column(as.data.frame(t(dfbetas1)), var = "b"), (b + 1)))), var = "effect"), effect != "b")
-
-#mutate(rownames_to_column(as.data.frame(t(head((as.data.frame(t(dfbetas1))),(b + 1)))), var = "effect"), effect = as.factor(effect))
-
-
-#mutate(rownames_to_column(as.data.frame(t(head((as.data.frame(t(dfbetas1))),(b + 1)))), var = "effect"), effect = as.factor(effect))
-
-
-
-```
-
 
 ```{r son_and_hur.2020}
 son_and_hur.2020_tib <- c(
@@ -1235,7 +1203,7 @@ forest(robust(rma.mv(yi = yi, V = vi, data = filter(meta_tib, NT_type.1 == "Calc
 
 
 ```{r MA_context}
-#Checking the levels for NT_type.2
+#Checking the levels for MA_context
 levels(meta_tib$MA_context)
 
 #Checking the data 
