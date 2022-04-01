@@ -1,5 +1,5 @@
 ---
-title: "meta_analysis_NT.simplified"
+title: "meta_analysis_NT"
 output: html_document
 date: '2022-03-05'
 ---
@@ -15,6 +15,7 @@ library(weightr)
 library(tidyverse)
 library(kableExtra)
 library(openxlsx)
+library(metaSEM)
 ```
 
 
@@ -72,7 +73,10 @@ time_converter <- function(min, d, m, y){
   return(tibble(mins,days, months, years))
 }
 
+```
 
+
+```{r function_chunk}
 ######################################################################
 #Variances at the 3 levels - Used to examine the variances at each level in the 3-level meta-analysis model 
 vardist.3l <- function(model, digits){
@@ -220,7 +224,6 @@ assumption <- function(model){
   qqplot <- qqnorm(residuals(model))
   return(list(qqplot, density.plot,resid_fitted_plot))}
 ```
-
 
 
 
@@ -834,11 +837,12 @@ num_eff_tib <- meta_tib %>% select(study_id, year) %>% group_by(study_id) %>% su
 num_eff_tib 
 
 #Stem and leaf diagram
-stem(meta_tib$yi) 
-
+stem(meta_tib$yi)
 
 #Export data 
 #write.xlsx(meta_tib, "meta_tib.xlsx", overwrite = T)
+
+
 ```
 
 
@@ -846,16 +850,12 @@ stem(meta_tib$yi)
 #Random-effect meta-analysis
 re_meta_model <- rma(yi = yi, vi = vi, data = meta_tib, method  = "DL")
 re_meta_model
+
 #Forest Plot
 forest(re_meta_model, addpred = T, header = T)
 
-rma(yi = yi, vi = vi, data = meta_tib, method  = "FE")
-
-#Prediction
-predict(re_meta_model, transf = transf.ztor, digits = 5)
-
 #Gosh Plot 
-plot(gosh(re_meta_model, subset = 200), out = 10)
+plot(gosh(re_meta_model, subset = 100), out = 10)
 
 #RESULTS
 # Fisher's z = 0.0596
@@ -907,8 +907,19 @@ forest(ml_meta_model.3l, addpred = T, header = T, slab = meta_tib$effect)
 
 
 #Examine the variance distribution (how much variance in each level)
-vardist.3l(model = ml_meta_model.3l, digits =  10)$variances %>% sum() %>% sqrt()
+vardist.3l(model = ml_meta_model.3l, digits =  5)
 
+```
+
+```{r doing_the_same_thing_with_metaSEM}
+#Fitting a 3-level meta-analysis (Cheung, 2019) using metaSEM 
+meta3(y = yi, v = vi, cluster = study_id, data = meta_tib) %>% summary()
+
+#Compare with 3 level meta-analysis with metafor 
+#TO COMPARE THEM, SET METHOD TO ML IN METAFOR, BECAUSE METASEM USES ML
+meta3(y = yi, v = vi, cluster = study_id, data = meta_tib) %>% summary()
+ml_meta_model.3l
+# EVERYTHING IS BASICALLY THE SAME, EXCEPT THE SE, METASEM HAS A BIGGER SE THAN METAFOR, ENOUGH TO MAKE THE EFFECT NONSIGNIFICANT (SIGNIFICANT IN METAFOR)
 ```
 
 
@@ -939,9 +950,8 @@ english_vs_dutch <- c(-1/2, 1/2)
 contrasts(meta_tib$main_language) <- english_vs_dutch
 
 
-#Moderator analysis
+#MODERATOR ANALYSIS 
 #----------------------------------------------------------------------------------------------------
-#3-level model
 ml_meta_model.3l_mod_main_language <- rma.mv(yi = yi, V = vi, data = meta_tib, struct = "CS", method = "REML", test = "t",
                                           mods = ~ main_language,
                                           random = ~ 1 | study_id/effect)
@@ -951,51 +961,37 @@ ml_meta_model.3l_mod_main_language
 regplot(ml_meta_model.3l_mod_main_language, xlab = "Language")
 
 
-#Assumption checks 
+#ASSUMPTION CHECKS
 #----------------------------------------------------------------------------------------------------
 assumption(model = ml_meta_model.3l_mod_main_language)
 #RESULTS 
 
 #NORMALITY OF RESIDUALS 
-#Residual normality is questionable 
+#Residual normality good 
 
 #HETEROSCEDASTICITY 
-#Variance is heteroscedastic 
+#Variance is homoscedastic 
 
 #NORMALITY OF THE SAMPLING DISTRIBUTION 
 #Sensitivity test with robust methods
 
-#Conclusion: Robust it 
+#Conclusion: Use normal model
 
 
-#ROBUST
+#INFLUENCE CHECKS
 #----------------------------------------------------------------------------------------------------
-#ROBUST SE
-ml_meta_model.3l_mod_main_language.rbst <- metafor::robust(ml_meta_model.3l_mod_main_language, cluster=meta_tib$effect, adjust = T)
-ml_meta_model.3l_mod_main_language.rbst
-
-#RESULTS 
-#No significant language effect
-
-
-
-#Influence checks 
-#----------------------------------------------------------------------------------------------------
-#Effect level
+#EFFECT LEVEL
 #Beta 1
 ml_meta_model.3l_mod_main_language.b1.lev2 <- rma.mv.influence(data = meta_tib, struct = "CS", method = "REML", mods = ~ NT_type.1, random = ~1 | study_id/effect, cluster = "effect", b = 1, robust = T, robust.cluster = "effect", adjust = T)
-ml_meta_model.3l_mod_main_language.b1.lev2 %>% filter(cooks.d >= 1)
-#Based on Cook's d, there is 1 influential case (mutaf_yildiz_et_al.2018b)
+ml_meta_model.3l_mod_main_language.b1.lev2 %>% filter(rstudent >= 1.96 | cooks.d >= 1)
+#There are no outliers/influential effects
 
 #STUDY LEVEL
 #Beta 1
 ml_meta_model.3l_mod_main_language.b1.lev3 <- rma.mv.influence(data = meta_tib, struct = "CS", method = "REML", mods = ~ NT_type.1, random = ~1 | study_id/effect, cluster = "study_id", b = 1, robust = T, robust.cluster = "effect", adjust = T)
 ml_meta_model.3l_mod_main_language.b1.lev3 %>% filter(cooks.d >= 1)
-#Based on Cook's d, there are 2 influential studies (mutaf_yildiz_et_al.2018 and casey_et_al.2018)
-
-
+#Based on Cook's d, there is 1 influential study (mutaf_yildiz_et_al.2018 and casey_et_al.2018)
 ```
-
 
 
 ```{r moderator_analysis_NT_type.1}
@@ -1022,10 +1018,8 @@ contrasts(meta_tib$NT_type.1) <- cbind(
 
 #contrasts(meta_tib$NT_type.1) <- contr.sum(10) - This is for sum coding - The p-values/results are all the same as deviation coding
 
-
+#MODERATOR ANALYSIS 
 #----------------------------------------------------------------------------------------------------
-#Moderator analysis 
-#3-level model
 ml_meta_model.3l_mod_NT_type.1 <- rma.mv(yi = yi, V = vi, data = meta_tib, struct = "CS", method = "REML", test = "t",
                                       mods = ~ NT_type.1, 
                                       random = ~ 1 | study_id/effect)
@@ -1039,7 +1033,7 @@ ml_meta_model.3l_mod_NT_type.1
 #--- Calculation (b = -0.2238, p = 0.0323)
 
 
-#Assumption checks 
+#ASSUMPTION
 #----------------------------------------------------------------------------------------------------
 assumption(model = ml_meta_model.3l_mod_NT_type.1)
 #RESULTS 
@@ -1048,13 +1042,12 @@ assumption(model = ml_meta_model.3l_mod_NT_type.1)
 #Residuals are not normally distributed 
 
 #HETEROSCEDASTICITY 
-#Variance is heteroscedastic 
+#Variance is fair 
 
 #NORMALITY OF THE SAMPLING DISTRIBUTION 
 #Sensitivity test with robust methods
 
 #Conclusion: Robust it
-
 
 
 #ROBUST
@@ -1067,14 +1060,13 @@ ml_meta_model.3l_mod_NT_type.1.rbst <- metafor::robust(ml_meta_model.3l_mod_NT_t
 ml_meta_model.3l_mod_NT_type.1.rbst
 
 
-
 #RESULTS 
 #Cardinality has a significantly greater positive effect (b = 0.3365, p = 0.0117)
 #Conventional Nominatives has a significantly greater positive effect (b = 0.5149, p = 0.0002)
 
 
 
-#Bonferroni correction 
+#BONFERRONI CORRECTION
 #----------------------------------------------------------------------------------------------------
 bonferroni <- function(model){
   tib1 <- filter(add_column(rename(rownames_to_column(as.data.frame(model$beta), var = "comparison"), estimate = V1), rename(as.tibble(model$pval), pval = value)), comparison != "intrcpt")
@@ -1091,7 +1083,7 @@ bonferroni(ml_meta_model.3l_mod_NT_type.1.rbst)
 
 #INFLUENCE
 #----------------------------------------------------------------------------------------------------
-#Effect level
+#EFFECT LEVEL
 #Beta 1
 #ml_meta_model.3l_mod_NT_type.1_outlier.lev2.b1 <- rma.mv.influence(data = meta_tib, struct = "CS", method = "REML", mods = ~ NT_type.1, random = ~1 | study_id/effect, cluster = "effect", b = 1, robust = T, robust.cluster = "effect",adjust = T)
 #ml_meta_model.3l_mod_NT_type.1_outlier.lev2.b1 
@@ -1136,7 +1128,6 @@ bonferroni(ml_meta_model.3l_mod_NT_type.1.rbst)
 #ml_meta_model.3l_mod_NT_type.1_outlier.lev3.b1 
 #ml_meta_model.3l_mod_NT_type.1_outlier.lev3.b1 
 
-
 #Beta 2
 #ml_meta_model.3l_mod_NT_type.1_outlier.lev3.b2 <- rma.mv.influence(data = meta_tib, struct = "CS", method = "REML", mods = ~ NT_type.1, random = ~1 | study_id/effect, cluster = "study_id", b = 2, robust = T, robust.cluster = "effect",adjust = T)
 #ml_meta_model.3l_mod_NT_type.1_outlier.lev3.b2  
@@ -1146,25 +1137,17 @@ bonferroni(ml_meta_model.3l_mod_NT_type.1.rbst)
 #ml_meta_model.3l_mod_NT_type.1_outlier.lev3.b3 <- rma.mv.influence(data = meta_tib, struct = "CS", method = "REML", mods = ~ NT_type.1, random = ~1 | study_id/effect, cluster = "study_id", b = 3, robust = T, robust.cluster = "effect",adjust = T)
 #ml_meta_model.3l_mod_NT_type.1_outlier.lev3.b3
 
-
-
 #Beta 4
 #ml_meta_model.3l_mod_NT_type.1_outlier.lev3.b4 <- rma.mv.influence(data = meta_tib, struct = "CS", method = "REML", mods = ~ NT_type.1, random = ~1 | study_id/effect, cluster = "study_id", b = 4, robust = T, robust.cluster = "effect",adjust = T)
 #ml_meta_model.3l_mod_NT_type.1_outlier.lev3.b4
-
-
 
 #Beta 5
 #ml_meta_model.3l_mod_NT_type.1_outlier.lev3.b5 <- rma.mv.influence(data = meta_tib, struct = "CS", method = "REML", mods = ~ NT_type.1, random = ~1 | study_id/effect, cluster = "study_id", b = 5, robust = T, robust.cluster = "effect",adjust = T)
 #ml_meta_model.3l_mod_NT_type.1_outlier.lev3.b5 %>% filter(cooks.d >= 1)
 
- 
-
 #Beta 6
 #ml_meta_model.3l_mod_NT_type.1_outlier.lev3.b6 <- rma.mv.influence(data = meta_tib, struct = "CS", method = "REML", mods = ~ NT_type.1, random = ~1 | study_id/effect, cluster = "study_id", b = 6, robust = T, robust.cluster = "effect",adjust = T)
 #ml_meta_model.3l_mod_NT_type.1_outlier.lev3.b6 %>% filter(cooks.d >= 1)
-
-
 
 #Beta 7
 #ml_meta_model.3l_mod_NT_type.1_outlier.lev3.b7 <- rma.mv.influence(data = meta_tib, struct = "CS", method = "REML", mods = ~ NT_type.1, random = ~1 | study_id/effect, cluster = "study_id", b = 7, robust = T, robust.cluster = "effect",adjust = T)
@@ -1174,36 +1157,29 @@ bonferroni(ml_meta_model.3l_mod_NT_type.1.rbst)
 
 #SUBGROUP
 #----------------------------------------------------------------------------------------------------
+#Number of studies by NT type
 meta_tib %>% group_by(NT_type.1) %>% summarise(n = n())
 subset(meta_tib, NT_type.1 =='Calculation') 
 
 #Cardinality
 #5 effects within 3 studies 
 robust(rma.mv(yi = yi, V = vi, data = filter(meta_tib, NT_type.1 == "Cardinality"), slab=paste(effect), struct = "CS", method = "REML", test = "t", 
-                                      random = ~ 1 | study_id/effect), cluster = filter(meta_tib, NT_type.1 == "Cardinality")$effect)
-forest(robust(rma.mv(yi = yi, V = vi, data = filter(meta_tib, NT_type.1 == "Cardinality"), slab=paste(effect), struct = "CS", method = "REML", test = "t", 
-                                      random = ~ 1 | study_id/effect), cluster = filter(meta_tib, NT_type.1 == "Cardinality")$effect))
+                                      random = ~ 1 | study_id/effect), cluster = filter(meta_tib, NT_type.1 == "Cardinality")$effect) %>% forest()
 
 #Conventional Nominatives
 #3 effects within 1 study
 robust(rma.mv(yi = yi, V = vi, data = filter(meta_tib, NT_type.1 == "Conventional_Nominatives"), slab=paste(effect), struct = "CS", method = "REML", test = "t", 
-                                      random = ~ 1 | effect), cluster = filter(meta_tib, NT_type.1 == "Conventional_Nominatives")$effect)
-forest(robust(rma.mv(yi = yi, V = vi, data = filter(meta_tib, NT_type.1 == "Conventional_Nominatives"), slab=paste(effect), struct = "CS", method = "REML", test = "t", 
-                                      random = ~ 1 | effect), cluster = filter(meta_tib, NT_type.1 == "Conventional_Nominatives")$effect)) 
+                                      random = ~ 1 | effect), cluster = filter(meta_tib, NT_type.1 == "Conventional_Nominatives")$effect) %>% forest()
 
 #Calculation
 #2 effects within 1 study
-robust(rma.mv(yi = yi, V = vi, data = filter(meta_tib, NT_type.1 == "Calculation"), slab=paste(effect), struct = "CS", method = "REML", test = "t", random = ~1 | effect), cluster = filter(meta_tib, NT_type.1 == "Calculation")$effect)
-forest(robust(rma.mv(yi = yi, V = vi, data = filter(meta_tib, NT_type.1 == "Calculation"), slab=paste(effect), struct = "CS", method = "REML", test = "t", random = ~1 | effect), cluster = filter(meta_tib, NT_type.1 == "Calculation")$effect))
-
-
-
+robust(rma.mv(yi = yi, V = vi, data = filter(meta_tib, NT_type.1 == "Calculation"), slab=paste(effect), struct = "CS", method = "REML", test = "t", random = ~1 | effect), cluster = filter(meta_tib, NT_type.1 == "Calculation")$effect) %>% forest()
 ```
 
 
 
 ```{r MA_context}
-#Checking the levels for MA_context
+#Checking the levels for MA context
 levels(meta_tib$MA_context)
 
 #Checking the data 
@@ -1221,7 +1197,7 @@ contrasts(meta_tib$MA_context) <- cbind(
   school_vs_mean,
   museum_vs_mean)
 
-#Moderator Analysis
+#MODERATOR ANALYSIS 
 #----------------------------------------------------------------------------------------------------
 #3-level model
 ml_meta_model.3l_mod_MA_context <- rma.mv(yi = yi, V = vi, data = meta_tib, struct = "CS", method = "REML", test = "t",
@@ -1232,9 +1208,7 @@ ml_meta_model.3l_mod_MA_context
 #Measuring in the lab has a greater effect (b = 0.2829, p = 0.0422)
 
 
-
-
-#Assumption checks 
+#ASSUMPTION 
 #----------------------------------------------------------------------------------------------------
 assumption(model = ml_meta_model.3l_mod_MA_context)
 #RESULTS 
@@ -1264,13 +1238,6 @@ ml_meta_model.3l_mod_MA_context.rbst
 #Measuring maths ability at home had a significantly more negative effect (b = -0.4341, p = 0.0299)
 #Measuring maths ability in the lab had a significantly greater positive effect (b = 0.2829, p = 0.0049)
 
-#Bonferroni adjustment 
-bonferroni(ml_meta_model.3l_mod_MA_context.rbst)
-#RESULTS 
-#Measuring maths ability in the lab had a significantly greater positive effect (b = 0.2829, p = 0.01959874)
-
-#RESULTS 
-#Measuring in a lab has a significantly greater effect
 
 
 #INFLUENCE
@@ -1332,36 +1299,25 @@ subset(meta_tib, MA_context =='Calculation')
 meta_tib %>% filter(MA_context == "Lab")
 #6 effects from 4 studies 
 robust(rma.mv(yi = yi, V = vi, data = filter(meta_tib, MA_context == "Lab"), slab=paste(effect), struct = "CS", method = "REML", test = "t", 
-                                      random = ~ 1 | study_id/effect), cluster = filter(meta_tib, MA_context == "Lab")$effect)
-forest(robust(rma.mv(yi = yi, V = vi, data = filter(meta_tib, MA_context == "Lab"), slab=paste(effect), struct = "CS", method = "REML", test = "t", 
-                                      random = ~ 1 | study_id/effect), cluster = filter(meta_tib, MA_context == "Lab")$effect))
-
+                                      random = ~ 1 | study_id/effect), cluster = filter(meta_tib, MA_context == "Lab")$effect) %>% forest()
 
 #School
 #Checking the number of effects/studies
 meta_tib %>% filter(MA_context == "School")
 #23 effects from 3 studies 
 robust(rma.mv(yi = yi, V = vi, data = filter(meta_tib, MA_context == "School"), slab=paste(effect), struct = "CS", method = "REML", test = "t", 
-                                      random = ~ 1 | study_id/effect), cluster = filter(meta_tib, MA_context == "School")$effect)
-forest(robust(rma.mv(yi = yi, V = vi, data = filter(meta_tib, MA_context == "School"), slab=paste(effect), struct = "CS", method = "REML", test = "t", 
-                                      random = ~ 1 | study_id/effect), cluster = filter(meta_tib, MA_context == "School")$effect))
-
+                                      random = ~ 1 | study_id/effect), cluster = filter(meta_tib, MA_context == "School")$effect) %>% forest()
 
 ```
 
-
 ```{r moderator_analysis_mothers}
 #Con mothers (Mothers as a continuous variable)
-#3-level model
 ml_meta_model.3l_mod_mothers_con <- rma.mv(yi = yi, V = vi, data = meta_tib, struct = "CS", method = "REML", test = "t",
                                     mods = ~ mothers, 
                                     random = ~ 1 | study_id/effect)
 ml_meta_model.3l_mod_mothers_con
-
-
 #RESULTS
 #The proportion of mothers significantly enhanced the effect NT on MA
-
 
 
 #Cat mothers (Mothers as a categorial variable)
@@ -1391,34 +1347,22 @@ ml_meta_model.3l_mod_mothers_cat
 regplot(ml_meta_model.3l_mod_mothers_cat, xlab = "Proportion of Mothers")
 
 
-#AASSUMPTION 
+#ASSUMPTION 
 #----------------------------------------------------------------------------------------------------
 assumption(model = ml_meta_model.3l_mod_mothers_cat)
 #RESULTS 
 
 #NORMALITY OF RESIDUALS 
-#Residuals are not normally distributed (a bit fat tailed)
+#Residuals are good 
 
 #HETEROSCEDASTICITY 
-#Variance is heteroscedastic 
+#Variance is homoscedastic 
 
 #NORMALITY OF THE SAMPLING DISTRIBUTION 
 #Sensitivity test with robust methods
 
-#Conclusion: Robust it 
+#Conclusion: Normal SE
 
-
-
-#ROBUST
-#----------------------------------------------------------------------------------------------------
-#Sensitivity test with robust SE
-ml_meta_model.3l_mod_mothers_cat
-
-#ROBUST SE
-ml_meta_model.3l_mod_mothers_cat.rbst <- metafor::robust(ml_meta_model.3l_mod_mothers_cat, cluster= meta_tib$effect, adjust = T)
-ml_meta_model.3l_mod_mothers_cat.rbst
-#RESULTS 
-#The proportion of mothers had a significantly positive effect (b = 0.1322, p = 0.0298)
 
 
 #INFLUENCE
@@ -1426,19 +1370,15 @@ ml_meta_model.3l_mod_mothers_cat.rbst
 #EFFECT LEVEL 
 #Beta 1
 ml_meta_model.3l_mod_mothers_cat.rbst.influence.b1.lev2 <- rma.mv.influence( data = meta_tib_mod_mothers, struct = "CS", method = "REML",mods = ~ mothers_cat, random = ~ 1 | study_id/effect, cluster = "effect", b = 1, robust = T, robust.cluster = "effect", adjust = T)
-ml_meta_model.3l_mod_mothers_cat.rbst.influence.b1.lev2
-ml_meta_model.3l_mod_mothers_cat.rbst.influence.b1.lev2  %>% filter(cooks.d >= 1)
+ml_meta_model.3l_mod_mothers_cat.rbst.influence.b1.lev2 %>% filter(rstudent >= 1.96)
 #Based on Cook's d, there are no influential cases 
 
 #STUDY LEVEL 
 #Beta 1
-ml_meta_model.3l_mod_mothers_cat.rbst.influence.b1.lev3 <- rma.mv.influence(data = meta_tib_mod_mothers, struct = "CS", method = "REML",mods = ~ mothers_cat, random = ~ 1 | study_id/effect, cluster = "effect", b = 1, robust = T, robust.cluster = "effect", adjust = T)
+ml_meta_model.3l_mod_mothers_cat.rbst.influence.b1.lev3 <- rma.mv.influence(data = meta_tib_mod_mothers, struct = "CS", method = "REML",mods = ~ mothers_cat, random = ~ 1 | study_id/effect, cluster = "study_id", b = 1, robust = T, robust.cluster = "effect", adjust = T)
 ml_meta_model.3l_mod_mothers_cat.rbst.influence.b1.lev3
 ml_meta_model.3l_mod_mothers_cat.rbst.influence.b1.lev3 %>% filter(cooks.d >= 1)
 #Based on Cook's d, there is 1 influential study (ramani_et_al.2015)
-
-
-#Based on Cook's d, there are no influential cases 
 
 
 #SUBGROUP
@@ -1453,27 +1393,18 @@ meta_tib_mod_mothers %>% filter(mothers_cat =='high')
 
 #High mothers
 robust(rma.mv(yi = yi, V = vi, data = filter(meta_tib_mod_mothers, mothers_cat == "high"), slab=paste(effect), struct = "CS", method = "REML", test = "t", 
-                                      random = ~ 1 | study_id/effect), cluster = filter(meta_tib_mod_mothers, mothers_cat == "high")$effect)
-
-forest(robust(rma.mv(yi = yi, V = vi, data = filter(meta_tib_mod_mothers, mothers_cat == "high"), slab=paste(effect), struct = "CS", method = "REML", test = "t", 
-                                      random = ~ 1 | study_id/effect), cluster = filter(meta_tib_mod_mothers, mothers_cat == "high")$effect))
-
-
+                                      random = ~ 1 | study_id/effect), cluster = filter(meta_tib_mod_mothers, mothers_cat == "high")$effect) %>% forest()
 
 #Low mothers
 robust(rma.mv(yi = yi, V = vi, data = filter(meta_tib_mod_mothers, mothers_cat == "low"), slab=paste(effect), struct = "CS", method = "REML", test = "t", 
-                                      random = ~ 1 | study_id/effect), cluster = filter(meta_tib_mod_mothers, mothers_cat == "low")$effect)
-
-forest(robust(rma.mv(yi = yi, V = vi, data = filter(meta_tib_mod_mothers, mothers_cat == "low"), slab=paste(effect), struct = "CS", method = "REML", test = "t", 
-                                      random = ~ 1 | study_id/effect), cluster = filter(meta_tib_mod_mothers, mothers_cat == "low")$effect))
-
-
+                                      random = ~ 1 | study_id/effect), cluster = filter(meta_tib_mod_mothers, mothers_cat == "low")$effect) %>% forest()
 
 ```
 
 
 ```{r moderator_analysis_child_age_NT_mid}
-#3-level model 
+#MODERATOR ANALYSIS 
+#----------------------------------------------------------------------------------------------------
 ml_meta_model.3l_mod_child_age_NT_mid <- rma.mv(yi = yi, V = vi, data = meta_tib, struct = "CS", method = "REML", test = "t",
                                                 mods = ~ child_age_NT_mid, 
                                                 random = ~ 1 | study_id/effect)
@@ -1484,7 +1415,7 @@ ml_meta_model.3l_mod_child_age_NT_mid
 regplot(ml_meta_model.3l_mod_child_age_NT_mid, xlab = "Child Age During Number Talk (Days)")
 
 
-#Assumption checks 
+#ASSUMPTION 
 #----------------------------------------------------------------------------------------------------
 assumption(model =ml_meta_model.3l_mod_child_age_NT_mid)
 #RESULTS 
@@ -1493,21 +1424,12 @@ assumption(model =ml_meta_model.3l_mod_child_age_NT_mid)
 #Residuals are fairly normal 
 
 #HETEROSCEDASTICITY 
-#Variance is heteroscedastic
+#Variance is homoscedastic 
 
 #NORMALITY OF THE SAMPLING DISTRIBUTION 
 #Sensitivity test with robust methods
 
-#Conclusion: Robust it 
-
-
-#ROBUST
-#----------------------------------------------------------------------------------------------------
-#ROBUST SE
-ml_meta_model.3l_mod_child_age_NT_mid.rbst <- metafor::robust(ml_meta_model.3l_mod_child_age_NT_mid, cluster= meta_tib$effect, adjust = T)
-ml_meta_model.3l_mod_child_age_NT_mid.rbst
-#RESULTS 
-#Child age during NT had a significant negative effect (b = -0.0002, 0.0233)
+#Conclusion: Normal SE
 
 
 #INFLUENCE
@@ -1523,8 +1445,6 @@ ml_meta_model.3l_mod_child_age_NT_mid.rbst
 #ml_meta_model.3l_mod_child_age_NT_mid.rbst.influence.b1.lev3 <- rma.mv.influence(data = meta_tib, struct = "CS", method = "REML", mods = ~ child_age_NT_mid, random = ~ 1 | study_id/effect, cluster = "study_id", b = 1, robust = T, robust.cluster = "effect", adjust = T)
 #ml_meta_model.3l_mod_child_age_NT_mid.rbst.influence.b1.lev3
 #Based on Cook's d, there is 1 influential study (casey_et_al.2018)
-
-
 ```
 
 ```{r NT_context}
@@ -1554,25 +1474,23 @@ ml_meta_model.3l_mod_NT_context
 #RESULTS 
 #No significant results 
 #But note that home shows a positive trend (b = 0.1937, p = 0.0996)
-```
 
 
-```{r NT_context}
 #ASSUMPTION 
 #----------------------------------------------------------------------------------------------------
 assumption(model = ml_meta_model.3l_mod_NT_context)
 #RESULTS 
 
 #NORMALITY OF RESIDUALS 
-#Residuals are disgusting!!
+#Residuals are questionable 
 
 #HETEROSCEDASTICITY 
-#Variance is heteroscedastic (looks like a Christmas tree)
+#Variance is homoscedastic 
 
 #NORMALITY OF THE SAMPLING DISTRIBUTION 
 #Sensitivity test with robust methods
 
-#Conclusion: Robust it 
+#Conclusion: Robust 
 
 
 #ROBUST
@@ -1583,15 +1501,11 @@ ml_meta_model.3l_mod_NT_context.rbst
 
 #RESULTS 
 #No significant results 
-
-
-
 ```
 
 ```{r MA_measure}
 #Checking the levels for MA_measure
 levels(meta_tib$MA_measure)
-
 
 #Setting contrast weights (deviation coding)
 calculationMA_vs_mean <-             c(0.5, 0, 0, 0, 0, 0, 0, -0.5)
@@ -1625,85 +1539,68 @@ ml_meta_model.3l_mod_MA_measure
 #But note that calculation NT show a positive trend (b = -0.4919, 0.0745)
 
 
-
 #ASSUMPTIONS 
 #----------------------------------------------------------------------------------------------------
 assumption(model = ml_meta_model.3l_mod_MA_measure)
 #RESULTS 
 
 #NORMALITY OF RESIDUALS 
-#Residuals are disgusting!!
+#Residuals are normally distributed
 
 #HETEROSCEDASTICITY 
-#Variance is heteroscedastic (looks like a Christmas tree)
+#Variance is homoscedastic 
 
 #NORMALITY OF THE SAMPLING DISTRIBUTION 
 #Sensitivity test with robust methods
 
-#Conclusion: Robust it 
-
-
-#ROBUST
-#----------------------------------------------------------------------------------------------------
-#ROBUST SE
-ml_meta_model.3l_mod_MA_measure.rbst <- metafor::robust(ml_meta_model.3l_mod_MA_measure, cluster= meta_tib$effect, adjust = T)
-ml_meta_model.3l_mod_MA_measure.rbst
-
-#RESULTS 
-#NT has a significantly negative effect on calculation (b = -0.4919, p = 0.0352)
-#NT has a significantly greater positive effect on quantity comparison (b = 0.3035, p = 0.0484)
+#Conclusion: Normal SE
 
 
 #INFLUENCE
 #----------------------------------------------------------------------------------------------------
 #EFFECT LEVEL (They are all the same; they are all based on Cook's d)
 #Beta 1
-#ml_meta_model.3l_mod_MA_measure.rbst.influence.b1.lev2 <- rma.mv.influence(data = meta_tib, mods = ~MA_measure, random = ~1 | study_id/effect, struct = "CS", method = "REML", cluster = "effect", b = 1, robust = T, robust.cluster = "effect", adjust = T)
+#ml_meta_model.3l_mod_MA_measure.rbst.influence.b1.lev2 <- rma.mv.influence(data = meta_tib, mods = ~MA_measure, random = ~1 | study_id/effect, struct = "CS", method = "REML", cluster = "effect", b = 1, robust = F, robust.cluster = "effect", adjust = T)
 #ml_meta_model.3l_mod_MA_measure.rbst.influence.b1.lev2
 #Based on Cook's d, there are 7 influential cases
 
-
 #Beta 2
-#ml_meta_model.3l_mod_MA_measure.rbst.influence.b2.lev2 <- rma.mv.influence(data = meta_tib, mods = ~MA_measure, random = ~1 | study_id/effect, struct = "CS", method = "REML", cluster = "effect", b = 2, robust = T, robust.cluster = "effect", adjust = T)
+#ml_meta_model.3l_mod_MA_measure.rbst.influence.b2.lev2 <- rma.mv.influence(data = meta_tib, mods = ~MA_measure, random = ~1 | study_id/effect, struct = "CS", method = "REML", cluster = "effect", b = 2, robust = F, robust.cluster = "effect", adjust = T)
 #ml_meta_model.3l_mod_MA_measure.rbst.influence.b2.lev2
 #Based on Cook's d, there are 7 influential cases
 
-
 #Beta 3
-#ml_meta_model.3l_mod_MA_measure.rbst.influence.b3.lev2 <- rma.mv.influence(data = meta_tib, mods = ~MA_measure, random = ~1 | study_id/effect, struct = "CS", method = "REML", cluster = "effect", b = 3, robust = T, robust.cluster = "effect", adjust = T)
+#ml_meta_model.3l_mod_MA_measure.rbst.influence.b3.lev2 <- rma.mv.influence(data = meta_tib, mods = ~MA_measure, random = ~1 | study_id/effect, struct = "CS", method = "REML", cluster = "effect", b = 3, robust = F, robust.cluster = "effect", adjust = T)
 #ml_meta_model.3l_mod_MA_measure.rbst.influence.b3.lev2
 #Based on Cook's d, there are 7 influential cases
 
-
 #Beta 4
-#ml_meta_model.3l_mod_MA_measure.rbst.influence.b4.lev2 <- rma.mv.influence(data = meta_tib, mods = ~MA_measure, random = ~1 | study_id/effect, struct = "CS", method = "REML", cluster = "effect", b = 4, robust = T, robust.cluster = "effect", adjust = T)
+#ml_meta_model.3l_mod_MA_measure.rbst.influence.b4.lev2 <- rma.mv.influence(data = meta_tib, mods = ~MA_measure, random = ~1 | study_id/effect, struct = "CS", method = "REML", cluster = "effect", b = 4, robust = F, robust.cluster = "effect", adjust = T)
 #ml_meta_model.3l_mod_MA_measure.rbst.influence.b4.lev2
 #Based on Cook's d, there are 7 influential cases
 
 #Beta 5
-#ml_meta_model.3l_mod_MA_measure.rbst.influence.b5.lev2 <- rma.mv.influence(data = meta_tib, mods = ~MA_measure, random = ~1 | study_id/effect, struct = "CS", method = "REML", cluster = "effect", b = 5, robust = T, robust.cluster = "effect", adjust = T)
+#ml_meta_model.3l_mod_MA_measure.rbst.influence.b5.lev2 <- rma.mv.influence(data = meta_tib, mods = ~MA_measure, random = ~1 | study_id/effect, struct = "CS", method = "REML", cluster = "effect", b = 5, robust = F, robust.cluster = "effect", adjust = T)
 #ml_meta_model.3l_mod_MA_measure.rbst.influence.b5.lev2
 #Based on Cook's d, there are 7 influential cases
 
 #Beta 6
-#ml_meta_model.3l_mod_MA_measure.rbst.influence.b6.lev2 <- rma.mv.influence(data = meta_tib, mods = ~MA_measure, random = ~1 | study_id/effect, struct = "CS", method = "REML", cluster = "effect", b = 6, robust = T, robust.cluster = "effect", adjust = T)
+#ml_meta_model.3l_mod_MA_measure.rbst.influence.b6.lev2 <- rma.mv.influence(data = meta_tib, mods = ~MA_measure, random = ~1 | study_id/effect, struct = "CS", method = "REML", cluster = "effect", b = 6, robust = F, robust.cluster = "effect", adjust = T)
 #ml_meta_model.3l_mod_MA_measure.rbst.influence.b6.lev2
 #Based on Cook's d, there are 7 influential cases
 
 #Beta 7
-#ml_meta_model.3l_mod_MA_measure.rbst.influence.b7.lev2 <- rma.mv.influence(data = meta_tib, mods = ~MA_measure, random = ~1 | study_id/effect, struct = "CS", method = "REML", cluster = "effect", b = 7, robust = T, robust.cluster = "effect", adjust = T)
+#ml_meta_model.3l_mod_MA_measure.rbst.influence.b7.lev2 <- rma.mv.influence(data = meta_tib, mods = ~MA_measure, random = ~1 | study_id/effect, struct = "CS", method = "REML", cluster = "effect", b = 7, robust = F, robust.cluster = "effect", adjust = T)
 #ml_meta_model.3l_mod_MA_measure.rbst.influence.b7.lev2
 #Based on Cook's d, there are 7 influential cases
 
 
 
-
 #STUDY LEVEL 
 #Beta 1
-#ml_meta_model.3l_mod_MA_measure.rbst.influence.b1.lev3 <- rma.mv.influence(data = meta_tib, mods = ~MA_measure, random = ~1 | study_id/effect, struct = "CS", method = "REML", cluster = "study_id", b = 1, robust = T, robust.cluster = "effect", adjust = T)
+#ml_meta_model.3l_mod_MA_measure.rbst.influence.b1.lev3 <- rma.mv.influence(data = meta_tib, mods = ~MA_measure, random = ~1 | study_id/effect, struct = "CS", method = "REML", cluster = "study_id", b = 1, robust = F, robust.cluster = "effect", adjust = T)
 #ml_meta_model.3l_mod_MA_measure.rbst.influence.b1.lev3
 #Based on Cook's d, there are 4 influential studies 
-
 
 ```
 
@@ -1715,6 +1612,7 @@ metafor::funnel(ml_meta_model.3l)
 
 #Egger's test
 #----------------------------------------------------------------------------------------------------
+#Create the data for Egger's regression 
 meta_tib_egger <- meta_tib %>% mutate(se = sqrt(vi), snd = yi/se, inv.se = 1/se)
 
 #Using lm
@@ -1730,13 +1628,12 @@ ggplot(meta_tib_egger, aes(x = inv.se, y = snd)) +
 #RESULTS
 #Egger's test indicated that there is no publication bias 
 
-
-
 #Vevea and Wood (2005?)
 #----------------------------------------------------------------------------------------------------
 weightfunct(effect = meta_tib$yi, v = meta_tib$vi, steps=c(0.05, 0.50, 1))
-
 ```
+
+
 
 
 
