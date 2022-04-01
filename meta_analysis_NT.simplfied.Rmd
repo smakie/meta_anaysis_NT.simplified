@@ -1,5 +1,5 @@
 ---
-title: "meta_analysis_NT.simplfied"
+title: "meta_analysis_NT.simplified"
 output: html_document
 date: '2022-03-05'
 ---
