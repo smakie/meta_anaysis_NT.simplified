@@ -501,6 +501,74 @@ levine_et_al.2010_tib <- c(
 ```
 
 
+```{r mix}
+d.rm <- function(m1, m2, s1, s2, r){
+  ((m1-m2)*(sqrt(2*(1-r))))/sqrt(((s1^2)+(s2^2))-(2*r*s1*s2))
+}
+
+
+d.rm(m1 = c(8.67, 8.67, 7.67, 7.67), m2 = c(7.92, 9.92, 8.25, 10.33), s1 = c(6.13, 6.13), s2 = c(4.78, 4.47,), r = c(0.50, .67))
+
+n.mix <-     c(12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12)
+tm1.mix <-   c(8.67, 8.67, 7.67, 7.67, 5.08, 5.08, 0.25, 0.25, 0.17, 0.17, 6.33, 6.33, 9.25, 9.25, 3.91, 3.91, 0.33, 0.33, 0.08, 0.08) 
+ts1.mix <-   c(6.13, 6.13, 6.13, 6.13, 0.90, 0.90, 0.45, 0.45, 0.38, 0.38, 3.67, 3.67, 5.02, 5.02, 2.36, 2.36, 0.14, 0.14, 0.28, 0.28)
+tm2.mix <-   c(7.92, 9.92, 8.25, 10.33, 5.00, 4.92, 0.25, 0.50, 0.25, 0.17, 6.67, 6.92, 8.08, 8.00, 3.58, 3.75, 0.17, 0.50, 0.17, 0.25)
+ts2.mix <-   c(4.78, 4.47, 5.33, 4.33, 0.87, 1.07, 0.45, 0.23, 0.45, 0.11, 3.71, 5.02, 3.74, 4.92, 1.97, 2.15, 0.11, 0.80, 0.38, 0.45)
+cm1.mix <-   c(5.25, 5.25, 7.42, 7.42, 4.17, 4.17, 0.08, 0.08, NA, NA, 5.25, 5.25, 7.42, 7.42, 4.17, 4.17, 0.08, 0.08, NA, NA)
+cs1.mix <-   c(3.64, 3.64, 3.95, 3.95, 1.59, 1.59, 0.28, 0.28, NA, NA, 3.64, 3.64, 3.95, 3.95, 1.59, 1.59, 0.28, 0.28, NA, NA)
+cm2.mix <-   c(6.17, 8.08, 6.58, 7.50, 3.83, 3.75, 0.25, 0.33, NA, NA, 6.17, 8.08, 6.58, 7.50, 3.83, 3.75, 0.25, 0.33, NA, NA)
+cs2.mix <-   c(4.05, 4.33, 3.33, 4.78, 1.70, 2.46, 0.45, 0.48, NA, NA, 4.05, 4.33, 3.33, 4.78, 1.70, 2.46, 0.45, 0.48, NA, NA)
+r.mix <-    c(0.50, 0.67, 0.50, 0.67, 0.95, 0.57, 0.11, -0.13, -0.26, -0.20, 0.61, 0.70, 0.61, 0.70, 0.81, 0.94, -0.32, 0.46, 0.67, 0.52)
+
+mixtib.p1 <- cbind(tm1.mix, ts1.mix, tm2.mix, ts2.mix, cm1.mix, cs1.mix, cm2.mix, cs2.mix, r.mix, n.mix) %>% as.tibble() %>% mutate(d.rm = ((tm2.mix-tm1.mix)*(sqrt(2*(1-r.mix))))/sqrt(((ts1.mix^2)+(ts2.mix^2))-(2*r.mix*ts1.mix*ts2.mix))) %>% mutate(d.ppc = ((tm2.mix-tm1.mix)-(cm2.mix - cm1.mix))/sqrt((((n.mix-1)*(ts1.mix^2)) + ((n.mix-1)*(cs1.mix^2)))/(n.mix + n.mix -2)))
+
+mixtib.p1 
+  
+
+  
+mix_et_al.2012_tib <- c(
+  "mix_et_al.2012a", "mix_et_al.2012b", "mix_et_al.2012c",  "mix_et_al.2012d", "mix_et_al.2012e", "mix_et_al.2012f", "mix_et_al.2012g", "mix_et_al.2012h", "mix_et_al.2012i", "mix_et_al.2012j",
+  "mix_et_al.2012k", "mix_et_al.2012l", "mix_et_al.2012m", "mix_et_al.2012n", "mix_et_al.2012o", "mix_et_al.2012p", "mix_et_al.2012q", "mix_et_al.2012r", "mix_et_al.2012s", "mix_et_al.2012t") %>% 
+  data.frame() %>% rename(., effect = .) %>% 
+    add_column(
+      effect_description = c("Counting NT - Counting aloud at session 3", "Counting NT - Counting aloud at session 6", "Counting NT - Counting disks at session 3", "Counting NT - Counting disks at session 6", "Counting NT - Cardinality 123 at session 3", "Counting NT - Cardinality 123 at session 6", "Counting NT - Cardinality 6 at session 3", "Counting NT - Cardinality 6 at session 6", "Counting NT - Cardinality 10 at session 3", "Counting NT - Cardinality 10 at session 6", "Cardinality NT - Counting aloud at session 3", "Cardinality  NT - Counting aloud at session 6", "Cardinality  NT - Counting disks at session 3", "Cardinality  NT - Counting disks at session 6", "Cardinality  NT - Cardinality 123 at session 3", "Cardinality  NT - Cardinality 123 at session 6", "Cardinality  NT - Cardinality 6 at session 3", "Cardinality NT - Cardinality 6 at session 6", "Cardinality  NT - Cardinality 10 at session 3", "Cardinality NT - Cardinality 10 at session 6"),
+      effect_id = c("Counting_Counting", "Counting_Counting", "Counting_Counting", "Counting_Counting", "Counting_Cardinality", "Counting_Cardinality", "Counting_Cardinality", "Counting_Cardinality", "Counting_Cardinality", "Counting_Cardinality", "Cardinality_Counting", "Cardinality_Counting", "Cardinality_Counting", "Cardinality_Counting", "Cardinality_Cardinality", "Cardinality_Cardinality", "Cardinality_Cardinality", "Cardinality_Cardinality", "Cardinality_Cardinality", "Cardinality_Cardinality"),
+      year = c(2012, 2012, 2012, 2012, 2012, 2012, 2012, 2012, 2012, 2012, 2012, 2012, 2012, 2012, 2012, 2012, 2012, 2012, 2012, 2012),
+      country = c("US", "US", "US", "US", "US", "US", "US", "US", "US", "US", "US", "US", "US", "US", "US", "US", "US", "US", "US", "US"),
+      study_id = c("mix_et_al.2012", "mix_et_al.2012", "mix_et_al.2012", "mix_et_al.2012", "mix_et_al.2012", "mix_et_al.2012", "mix_et_al.2012", "mix_et_al.2012", "mix_et_al.2012", "mix_et_al.2012", "mix_et_al.2012", "mix_et_al.2012", "mix_et_al.2012", "mix_et_al.2012", "mix_et_al.2012", "mix_et_al.2012", "mix_et_al.2012", "mix_et_al.2012", "mix_et_al.2012", "mix_et_al.2012"),
+      design = c("Experimental", "Experimental", "Experimental", "Experimental", "Experimental", "Experimental", "Experimental", "Experimental", "Experimental", "Experimental", "Experimental", "Experimental", "Experimental", "Experimental", "Experimental", "Experimental", "Experimental", "Experimental", "Experimental", "Experimental"),
+      design.2 = c("Experimental_prepost", "Experimental_prepost", "Experimental_prepost", "Experimental_prepost", "Experimental_prepost", "Experimental_prepost", "Experimental_prepost", "Experimental_prepost", "Experimental_prepost", "Experimental_prepost", "Experimental_prepost", "Experimental_prepost", "Experimental_prepost", "Experimental_prepost", "Experimental_prepost", "Experimental_prepost", "Experimental_prepost", "Experimental_prepost", "Experimental_prepost", "Experimental_prepost"), 
+      SES = c("Middle", "Middle", "Middle", "Middle", "Middle", "Middle", "Middle", "Middle", "Middle", "Middle", "Middle", "Middle", "Middle", "Middle", "Middle", "Middle", "Middle", "Middle", "Middle", "Middle"),
+      main_language = c("English", "English", "English", "English", "English", "English", "English", "English", "English", "English", "English", "English", "English", "English", "English", "English", "English", "English", "English", "English"),
+      deliverer_type = c("Experimenter", "Experimenter", "Experimenter", "Experimenter", "Experimenter", "Experimenter", "Experimenter", "Experimenter", "Experimenter", "Experimenter", "Experimenter", "Experimenter", "Experimenter", "Experimenter", "Experimenter", "Experimenter", "Experimenter", "Experimenter", "Experimenter", "Experimenter"),
+      mothers = c(NA, NA, NA, NA, NA, NA, NA, NA, NA, NA ,NA, NA, NA, NA, NA, NA, NA, NA, NA, NA),
+      white = c(NA, NA, NA, NA, NA, NA, NA, NA, NA, NA ,NA, NA, NA, NA, NA, NA, NA, NA, NA, NA), 
+      female = c(NA, NA, NA, NA, NA, NA, NA, NA, NA, NA ,NA, NA, NA, NA, NA, NA, NA, NA, NA, NA),
+      child_age_study_start = c(1314.9, 1314.9, 1314.9, 1314.9, 1314.9, 1314.9, 1314.9, 1314.9, 1314.9, 1314.9, 1314.9, 1314.9, 1314.9, 1314.9, 1314.9, 1314.9, 1314.9, 1314.9, 1314.9, 1314.9),
+      child_age_NT_start = c(NA, NA, NA, NA, NA, NA, NA, NA, NA, NA ,NA, NA, NA, NA, NA, NA, NA, NA, NA, NA),
+      child_age_NT_mid = c(NA, NA, NA, NA, NA, NA, NA, NA, NA, NA ,NA, NA, NA, NA, NA, NA, NA, NA, NA, NA),
+      child_age_NT_end = c(NA, NA, NA, NA, NA, NA, NA, NA, NA, NA ,NA, NA, NA, NA, NA, NA, NA, NA, NA, NA),
+      child_age_MA = c(NA, NA, NA, NA, NA, NA, NA, NA, NA, NA ,NA, NA, NA, NA, NA, NA, NA, NA, NA, NA),
+      NT_measure_time = c(NA, NA, NA, NA, NA, NA, NA, NA, NA, NA ,NA, NA, NA, NA, NA, NA, NA, NA, NA, NA),
+      time_between_NT_mid_MA = c(NA, NA, NA, NA, NA, NA, NA, NA, NA, NA ,NA, NA, NA, NA, NA, NA, NA, NA, NA, NA),
+      intervention_dosage = c(NA, NA, NA, NA, NA, NA, NA, NA, NA, NA ,NA, NA, NA, NA, NA, NA, NA, NA, NA, NA),
+      NT_context = c(NA, NA, NA, NA, NA, NA, NA, NA, NA, NA ,NA, NA, NA, NA, NA, NA, NA, NA, NA, NA),
+      MA_context = c(NA, NA, NA, NA, NA, NA, NA, NA, NA, NA ,NA, NA, NA, NA, NA, NA, NA, NA, NA, NA),
+      NT_size = c(NA, NA, NA, NA, NA, NA, NA, NA, NA, NA ,NA, NA, NA, NA, NA, NA, NA, NA, NA, NA),
+      NT_size.1 = c(NA, NA, NA, NA, NA, NA, NA, NA, NA, NA ,NA, NA, NA, NA, NA, NA, NA, NA, NA, NA),
+      NT_type = c(NA, NA, NA, NA, NA, NA, NA, NA, NA, NA ,NA, NA, NA, NA, NA, NA, NA, NA, NA, NA),
+      NT_type.1 = c(NA, NA, NA, NA, NA, NA, NA, NA, NA, NA ,NA, NA, NA, NA, NA, NA, NA, NA, NA, NA),
+      NT_type.10 = c(NA, NA, NA, NA, NA, NA, NA, NA, NA, NA ,NA, NA, NA, NA, NA, NA, NA, NA, NA, NA),
+      MA_test = c(NA, NA, NA, NA, NA, NA, NA, NA, NA, NA ,NA, NA, NA, NA, NA, NA, NA, NA, NA, NA),
+      MA_measure = c(NA, NA, NA, NA, NA, NA, NA, NA, NA, NA ,NA, NA, NA, NA, NA, NA, NA, NA, NA, NA),
+      analysis = c(NA, NA, NA, NA, NA, NA, NA, NA, NA, NA ,NA, NA, NA, NA, NA, NA, NA, NA, NA, NA),
+      controlled_variables = c(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
+      r = c(mixtib.p1$r),
+      n = c(60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60))
+
+time_converter(m = 43.2)
+```
+
 
 ```{r susperreguy_and_davis_kean.2016}
 susperreguy_and_davis_kean.2016_tib <- c(
